@@ -1,0 +1,24 @@
+Revision 2.4  2010/07/09 18:19:11
+Added mdb2json to produce JSON style output  
+(Thanks to Mark Constable for suggestion and help with MIT license)
+
+Revision 2.3  2010/07/07 18:01:30
+Change the license terms to MIT which is a more standard license
+Adapted some code so it compiles without warnings on gcc 4.4
+Formatted code to K&R style
+
+Revision 2.2  2010/02/26 17:10:30
+Change the license terms in the programcode 
+to match the one on the website.
+No code changes were done.
+
+Revision 2.1  2003/10/09 21:04:30
+Replaced BPLUS package with new btree library
+Added extra programs mdbfilter and mdb2xml
+More options and commands
+mdb program is now 26K large (small)
+
+Revision 1.0  2003/03/23 20:16:37
+Initial revision
+
+

@@ -1,0 +1,180 @@
+Welcome to the miniDB library.
+
+This library was created to have a small fast isam/btree library
+for record keybased access. There is no sql interface available or planned.
+
+Features:
+- small footprint (less than 26 Kb)
+- multiple indexes on a datafile (max 10)
+- multiple fields in a index (max 8)
+- autoincrement keys
+- datafile is ascii based
+- cmdline interface for usage in scripts
+- client/server or standalone usage
+- database logging
+- single executable
+
+For more information about btrees :
+Book : Sorting and Searching Algorithms by Thomas Niemann, Portland, Oregon  epaperpress.com
+* Website: http://www.oopweb.com/Algorithms/Documents/Sman/VolumeFrames.html
+
+
+Included files:
+- bt.c			all btree routines
+- mdb_lib.c		all mdb isam routines	
+- mdb_client.c		mdb wrapper for client/server use
+- mdb_net.c		all mdb network routines	
+- mdb.c			miniDB standalone with a cmdline interface
+- mdbserver.c	 	miniDB server daemon	
+- mdbfilter.c           filter program for mdb output
+- mdb2xml.c             output from mdb is converted to xml
+
+The isam datafile is an ascii based file, so that it still can be parsed
+using standard utilities (like grep, awk, ..). 
+All valid records in the datafile start with the letter R, so to
+extract all the records : grep "^R" demo.dat
+
+-------------------------------------------------------------------------
+There is a simple cmdline interface called 'mdb' which you can use 
+standalone or as client/server program to access the data.
+
+mdb syntax:
+
+Syntax: mdb [-b<idstring>] [-r<norows>] [-k<keyno>] [-h <host>] [-p <port>]
+                           <tablename> <cmd> [<key> [<data>]]
+ Options:  -b  assign a stringid for recognising empty fields
+               used when updating a record
+           -f  show field names before data
+           -k  select key
+           -r  retrieve .. number of rows
+           -h  hostname (only in case of client/server)
+           -p  portno (default 7221)
+           -u  used fields
+
+       cmd = f,l   (first,last)
+             p,e,n (previous, equal, next)
+             a,u,d (add, update, delete)
+	     s     (search)
+	     r     (retrieve record 1..n)
+	     B,C,D (reBuild, create or drop index)
+	     L     (database logging on/off)
+
+mDB always want to have a : filename & cmd
+
+Examples: 
+
+New file creation:
+   Ex. mdb customer c 'custid:n6|seak:c8|name:a30|place:a30|_idx:1|_idx:2:1|' 
+
+   Will create a new isamfile called customer with 2 indexes.
+   each field is seperated by '|' and each field specifies a type and length
+   so: custid:n6  =  numeric, length 6 
+       seak:c8    =  ascii,   length 8
+       name:a30   =  ascii,   length 30
+   types:  a - ascii field
+	   c - ascii field, in keys it is uppercased and stripped from spaces
+               ex. 'John Doe' will be used in an index as 'JOHNDOE' but
+                   in the data it will still be 'John Doe' 
+           n - numeric field
+	   i - numeric field, when 0 it is given an autoincrement value
+	   f - float field (syntax f8.2)
+
+   All data is saved as ascii in the isam file with '|' as a seperator.
+
+
+Adding data:
+   Ex. mdb customer a '1201|doe|John Doe|New York|' 
+       1|1201|doe|John Doe|New York|
+
+   Adds a new record to file customer and its indexes.
+   fieldvalues seperated by '|', autoincrement fields can be 0
+   Will output the added record to standard out with its recordnumber prefixed
+   and with the generated autoincement values.
+
+   mdb -u'place|name|custid|seak' customer a '1201' 'London|John Doe|1201|doe'
+
+   The -u flag maps the record fields from the last parameter (record values)
+
+Retrieving:
+   Ex. mdb          customer e '1201'  retrieve exact matching key '1201'
+       mdb          customer n '1201'  retrieve the next key
+       mdb          customer p '1201'  retrieve the previous key
+       mdb          customer f         retrieve the first record using index 1
+       mdb -k2      customer l 	       retrieve the last  record using index 2
+       mdb -k2 -r10 customer s 'do'    search on index 2 as >= 'do' and 
+				       retrieve 10 rows 
+       mdb -r-10    customer s 'do'    same, but does the previous records
+
+Updating:
+   ex. mdb -b'#' customer u '1201' '#|#|London|' 
+
+   Will retrieve indexkey '1201' (index 1) and update its field contents, i
+   leaving the '#' fields to the original values.
+   Note: Will update only 1 record.
+
+      mdb -b'#' -u'place|name' customer u '1201' 'London|Doe'
+
+   The -u flag will specify the last parameter and internally it will be build
+   like: '#|#|Doe|London|' 
+
+Deleting:
+   Ex. mdb customer d '1201' 
+
+   Will delete the record with indexkey '1201' (index 1) .
+
+
+Building, adding and deleting indexes:
+   Ex. mdb -k2 customer D  		Delete index 2
+       mdb -k2 customer C '2:1' 	Add index 2 with field 2 and 1 (seak/id)
+       mdb -k2 customer B 		Rebuilds index 2
+       mdb -k0 customer B 		Rebuilds all indexes
+
+Enable/disable logging:
+   Ex. mdb customer L on		Enable file logging
+   Ex. mdb customer L off		Disable file logging
+
+
+   With filelogging all inserts,updates and deletes are logged into a 
+   seperate logfile. With this logfile changes can be traced and for
+   instance an incremental backup can be made or changes can be reversed.
+   When updates are logged the old and new record values are being logged.
+
+Information:
+   Ex. mdb customer i			gives some mdb information 
+
+
+Extra programs:
+
+mdbfilter - will filter the output of mdb
+            ex. mdb -f -r10 demo s data|mdbfilter -f "name|id|"
+
+mdb2xml   - output from mdb will be outputted as xml
+            ex. mdb -f -r10 demo s data|mdbxml -p "tbl_"
+
+mdb2json  - output from mdb will be outputted as JSON
+            ex. mdb -f -r2 demo s '12344'|mdb2json -p "tbl_" -r
+
+JSON output example:
+
+{ "tbl_Result": [
+     { 
+	 "tbl_recno": 11344,
+	 "tbl_id": 12344,
+	 "tbl_seak": "infirm",
+	 "tbl_name": "infirm",
+	 "tbl_street": "street 12344",
+	 "tbl_postal": "ZIP 1234",
+	 "tbl_place": "nfirm"
+     },{ 
+	 "tbl_recno": 11345,
+	 "tbl_id": 12345,
+	 "tbl_seak": "affirmed",
+	 "tbl_name": "affirmed",
+	 "tbl_street": "street 12345",
+	 "tbl_postal": "ZIP 1234",
+	 "tbl_place": "ffirmed"
+     }
+     ],
+  "tbl_NoRows": 2 
+}
+
